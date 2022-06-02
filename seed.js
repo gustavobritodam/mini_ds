@@ -48,7 +48,7 @@ const main = async () => {
   .map(({ address, name }) => {
     const [host, port] = address.split(":");
     const socket = net.createConnection({ port, host }, () => {});
-    socket.write(`${name};${seedAddress}`);
+    socket.write(name);
     socket.on("data", (data) => {
       fs.writeFileSync(`${folder}/${name}`, data);
       socket.end();
@@ -58,10 +58,10 @@ const main = async () => {
 
   const server = net.createServer((socket) => {
     socket.on("data", (data) => {
-      const [fileName, peerAddress] = data.toString().split(";");
+      const fileName = data.toString();
 
       const fileContent = fs.readFileSync(`${folder}/${fileName}`);
-        console.log("enviando para ", peerAddress);
+        console.log("enviando para ", socket.remoteAddress);
       socket.write(fileContent);
       socket.end();
     });
