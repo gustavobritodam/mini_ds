@@ -1,11 +1,25 @@
 const fs = require("fs");
 const net = require("net");
 const axios = require("axios");
+const crypto = require("crypto");
 
 const port = process.env.PORT;
 const folder = process.env.FOLDER || "_test_files/";
-const seedAddress = `localhost:${port}`;
 const fileNames = fs.readdirSync(folder);
+
+const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
+  modulusLength: 2048,
+  namedCurve: 'secp256k1',
+  publicKeyEnconding: {
+    type: 'spki',
+    format: 'pem'
+  },
+  privateKeyEnconding: {
+    type: 'pkcs8',
+    format: 'der'
+  }
+});
+
 
 const registerFiles = async () => {
   const indexAddress = "http://localhost:5001/register";
@@ -16,6 +30,7 @@ const registerFiles = async () => {
     files.push({
       name,
       address,
+      publicKey: publicKey.export({ format: 'pem', type: 'spki' }).toString('hex')
     });
   });
 
@@ -44,25 +59,33 @@ const main = async () => {
   const files = await getFiles();
 
   files
-  .filter(({ name }) => !fileNames.includes(name))
-  .map(({ address, name }) => {
-    const [host, port] = address.split(":");
-    const socket = net.createConnection({ port, host }, () => {});
-    socket.write(name);
-    socket.on("data", (data) => {
-      fs.writeFileSync(`${folder}/${name}`, data);
-      socket.end();
-      console.log("done");
+    .filter(({ name }) => !fileNames.includes(name))
+    .map(({ address, name, publicKey: seedPublicKeyPEM }) => {
+      const [host, port] = address.split(":");
+      const socket = net.createConnection({ port, host }, () => { });
+      socket.write(name);
+      socket.on("data", (encryptedData) => {
+        const seedPublicKey = crypto.createPublicKey({
+          key: seedPublicKeyPEM.toString(), format: 'pem', type: 'spki'
+        });
+
+        const fileContent = crypto.publicDecrypt(seedPublicKey, encryptedData);
+        fs.writeFileSync(`${folder}/${name}`, fileContent);
+        socket.end();
+        console.log("done");
+      });
     });
-  });
 
   const server = net.createServer((socket) => {
     socket.on("data", (data) => {
       const fileName = data.toString();
 
       const fileContent = fs.readFileSync(`${folder}/${fileName}`);
-        console.log("enviando para ", socket.remoteAddress);
-      socket.write(fileContent);
+      console.log("enviando para ", socket.remoteAddress);
+
+      const encryptedFile = crypto.privateEncrypt(privateKey, fileContent);
+
+      socket.write(encryptedFile);
       socket.end();
     });
   });
