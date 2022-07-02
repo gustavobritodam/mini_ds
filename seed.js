@@ -5,6 +5,8 @@ const crypto = require("crypto");
 
 const port = process.env.PORT;
 const folder = process.env.FOLDER || "_test_files/";
+const indexBaseAddress = "http://localhost:5001"
+const peerBaseAddress = "localhost"
 const fileNames = fs.readdirSync(folder);
 
 const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
@@ -22,8 +24,8 @@ const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
 
 
 const registerFiles = async () => {
-  const indexAddress = "http://localhost:5001/register";
-  const address = `localhost:${port}`;
+  const indexAddress = `${indexBaseAddress}/register`;
+  const address = `${peerBaseAddress}:${port}`;
   let files = [];
 
   fileNames.map((name) => {
@@ -48,7 +50,7 @@ const registerFiles = async () => {
 };
 
 const getFiles = async () => {
-  const indexAddress = "http://localhost:5001/files";
+  const indexAddress = `${indexBaseAddress}/files`;
   const response = await axios.get(indexAddress);
   return response.data;
 };
@@ -72,7 +74,7 @@ const main = async () => {
         const fileContent = crypto.publicDecrypt(seedPublicKey, encryptedData);
         fs.writeFileSync(`${folder}/${name}`, fileContent);
         socket.end();
-        console.log("done");
+        console.log(`Done! Downloaded ${name}`);
       });
     });
 
@@ -81,7 +83,7 @@ const main = async () => {
       const fileName = data.toString();
 
       const fileContent = fs.readFileSync(`${folder}/${fileName}`);
-      console.log("enviando para ", socket.remoteAddress);
+      console.log("Enviando para", socket.remoteAddress);
 
       const encryptedFile = crypto.privateEncrypt(privateKey, fileContent);
 
