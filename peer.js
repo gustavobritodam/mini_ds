@@ -55,7 +55,7 @@ const registerFiles = async () => {
 };
 
 const getFiles = async () => {
-  const indexAddress = `${indexBaseAddress}/files`;
+  const indexAddress = `${indexBaseAddress}/files/${port}`;
   const response = await axios.get(indexAddress);
   return response.data;
 };
@@ -68,9 +68,9 @@ const main = async () => {
   files
     .filter(({ name }) => fileNames.includes(name))
     .map(({ address, name, publicKey: seedPublicKeyPEM, hashDigest }) => {
+      let timestamp = new Date().getTime();
       hash = crypto.createHash("sha256").update(name, address).digest("hex");
       if (hash != hashDigest) {
-        let timestamp = new Date().getTime();
         console.log(`Something went wrong with ${name} file transfer from ${indexBaseAddress} to ${address} at ${timestamp}`);
         return;
       }
@@ -88,26 +88,23 @@ const main = async () => {
         const fileContent = crypto.publicDecrypt(seedPublicKey, encryptedData);
         fs.writeFileSync(`${folder}/${name}`, fileContent);
         socket.end();
-
-        let timestamp = new Date().getTime();
-        console.log(`Done! ${address}received ${name} from ${indexBaseAddress} at ${timestamp}`);
+        console.log(`Received ${name} from ${indexBaseAddress} at ${timestamp}`);
       });
     });
 
   const server = net.createServer((socket) => {
     socket.on("data", (data) => {
-      const fileName = data.toString();
-
+      const fileName = data.toString();      
       const fileContent = fs.readFileSync(`${folder}/${fileName}`);
-      console.log("Enviando para", socket.remoteAddress);
-
       const encryptedFile = crypto.privateEncrypt(privateKey, fileContent);
 
       socket.write(encryptedFile);
+      let timestamp = new Date().getTime();
+      console.log(`Sending ${fileName} to ${socket.remoteAddress} at ${timestamp}`);
       socket.end();
     });
   });
-  server.listen(port, () => console.log("Ouvindo porta " + port));
+  server.listen(port, () => console.log("Listening on port" + port));
 };
 
 main();
