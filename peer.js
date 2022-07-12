@@ -66,7 +66,7 @@ const main = async () => {
   const files = await getFiles();
 
   files
-    .filter(({ name }) => fileNames.includes(name))
+    .filter(({ name }) => !fileNames.includes(name))
     .map(({ address, name, publicKey: seedPublicKeyPEM, hashDigest }) => {
       let timestamp = new Date().getTime();
       hash = crypto.createHash("sha256").update(name, address).digest("hex");
